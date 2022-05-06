@@ -2,15 +2,11 @@ import cv2
 import sys, os
 import time
 import mediapipe as mp
+from modules.utils import createDirectory
 
-def createDirectory(directory):
-    try:
-        if not os.path.exists(directory):
-            os.makedirs(directory)
-    except OSError:
-        print("Error: Failed to create the directory.")
+createDirectory('dataset')
 
-actions = ['yes', 'no', 'like', 'clapping']
+actions = ['yes', 'no', 'like', 'heart']
 seq_length = 30
 secs_for_action = 30
 
@@ -19,7 +15,7 @@ mp_hands = mp.solutions.hands
 mp_drawing = mp.solutions.drawing_utils
 hands = mp_hands.Hands(
     max_num_hands=2,
-    min_detection_confidence=0.5,
+    min_detection_confidence=0.3,
     min_tracking_confidence=0.5)
 
 cap = cv2.VideoCapture(0)
