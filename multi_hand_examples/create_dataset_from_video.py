@@ -7,6 +7,8 @@ from modules.utils import createDirectory
 import json
 import time
 
+createDirectory('dataset/output_video')
+
 # 저장할 파일 이름
 save_file_name = "train"
 
@@ -23,7 +25,7 @@ for i in range(len(actions)):
 # MediaPipe holistic model
 detector = hm.HolisticDetector(min_detection_confidence=0.1)
 
-videoFolderPath = "dataset/output_video"
+videoFolderPath = "dataset/train_video"
 videoTestList = os.listdir(videoFolderPath)
 
 testTargetList =[]
@@ -82,6 +84,7 @@ for target in testTargetList:
         if left_hand_lmList is not None and right_hand_lmList is not None:
             
             joint = np.zeros((42, 2))
+            
             # 왼손 랜드마크 리스트
             for j, lm in enumerate(left_hand_lmList.landmark):
                 joint[j] = [lm.x, lm.y]
@@ -89,6 +92,46 @@ for target in testTargetList:
             # 오른손 랜드마크 리스트
             for j, lm in enumerate(right_hand_lmList.landmark):
                 joint[j+21] = [lm.x, lm.y]
+
+            # 좌표 정규화
+            x_coordinates = []
+            y_coordinates = []
+            for i in range(21):
+                x_coordinates.append(joint[i][0] - joint[0][0])
+                y_coordinates.append(joint[i][1] - joint[0][1])
+            for i in range(21):
+                x_coordinates.append(joint[i+21][0] - joint[21][0])
+                y_coordinates.append(joint[i+21][1] - joint[21][1])
+
+            x_left_hand = x_coordinates[:21]
+            x_right_hand = x_coordinates[21:]
+            y_left_hand = y_coordinates[:21]
+            y_right_hand = y_coordinates[21:]
+
+            if max(x_left_hand) == min(x_left_hand):
+                x_left_hand_scale = x_left_hand
+            else:
+                x_left_hand_scale = x_left_hand/(max(x_left_hand)-min(x_left_hand))
+            
+            if max(x_right_hand) == min(x_right_hand):
+                x_right_hand_scale = x_right_hand
+            else:
+                x_right_hand_scale = x_right_hand/(max(x_right_hand)-min(x_right_hand))
+            
+            if max(y_left_hand) == min(y_left_hand):
+                y_left_hand_scale = y_left_hand
+            else:
+                y_left_hand_scale = y_left_hand/(max(y_left_hand)-min(y_left_hand))
+            
+            if max(y_right_hand) == min(y_right_hand):
+                y_right_hand_scale = y_right_hand
+            else:
+                y_right_hand_scale = y_right_hand/(max(y_right_hand)-min(y_right_hand))
+                    
+            full_scale = np.concatenate([x_left_hand_scale.flatten(),
+                                         x_right_hand_scale.flatten(),
+                                         y_left_hand_scale.flatten(),
+                                         y_right_hand_scale.flatten()])
 
             # Compute angles between joints
             v1 = joint[[0,1,2,3,0,5,6,7,0,9,10,11,0,13,14,15,0,17,18,19] + [i+21 for i in [0,1,2,3,0,5,6,7,0,9,10,11,0,13,14,15,0,17,18,19]], :2] # Parent joint
@@ -111,10 +154,13 @@ for target in testTargetList:
 
             # 위치 종속성을 가지는 데이터 저장
             # d = np.concatenate([joint.flatten(), angle_label])
-        
+
             # 정규화 벡터를 활용한 위치 종속성 제거
-            d = np.concatenate([v.flatten(), angle_label.flatten()])
-        
+            # d = np.concatenate([v.flatten(), angle_label.flatten()])
+
+            # 정규화 좌표를 활용한 위치 종속성 제거 
+            d = np.concatenate([full_scale, angle_label.flatten()])
+            
             data.append(d)
 
         
@@ -126,7 +172,7 @@ for target in testTargetList:
         cv2.putText(img, target
                     , (15,20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
 
-        cv2.imshow('img', img)
+        # cv2.imshow('img', img)
         cv2.waitKey(delay)
 
         # esc를 누르면 강제 종료
