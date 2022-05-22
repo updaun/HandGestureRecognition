@@ -7,6 +7,8 @@ from modules.utils import createDirectory
 import json
 import time
 
+from modules.utils import Coordinate_Normalization, Vector_Normalization
+
 createDirectory('dataset/output_video')
 
 # 저장할 파일 이름
@@ -25,7 +27,7 @@ for i in range(len(actions)):
 # MediaPipe holistic model
 detector = hm.HolisticDetector(min_detection_confidence=0.1)
 
-videoFolderPath = "dataset/train_video"
+videoFolderPath = "dataset/new_test_video"
 videoTestList = os.listdir(videoFolderPath)
 
 testTargetList =[]
@@ -47,7 +49,10 @@ print("----------  End Video List  ----------\n")
 for target in testTargetList:
 
     data = []
-    idx = actions.index(target[target.find("/", 10)+1:target.find("/", 21)])
+    first_index = target.find("/")
+    second_index = target.find("/", first_index+1)
+    third_index = target.find("/", second_index+1)
+    idx = actions.index(target[target.find("/", second_index)+1:target.find("/", third_index)])
 
     print("Now Streaming :", target)
     cap = cv2.VideoCapture(target)
@@ -94,69 +99,20 @@ for target in testTargetList:
                 joint[j+21] = [lm.x, lm.y]
 
             # 좌표 정규화
-            x_coordinates = []
-            y_coordinates = []
-            for i in range(21):
-                x_coordinates.append(joint[i][0] - joint[0][0])
-                y_coordinates.append(joint[i][1] - joint[0][1])
-            for i in range(21):
-                x_coordinates.append(joint[i+21][0] - joint[21][0])
-                y_coordinates.append(joint[i+21][1] - joint[21][1])
+            full_scale = Coordinate_Normalization(joint)
 
-            x_left_hand = x_coordinates[:21]
-            x_right_hand = x_coordinates[21:]
-            y_left_hand = y_coordinates[:21]
-            y_right_hand = y_coordinates[21:]
-
-            if max(x_left_hand) == min(x_left_hand):
-                x_left_hand_scale = x_left_hand
-            else:
-                x_left_hand_scale = x_left_hand/(max(x_left_hand)-min(x_left_hand))
-            
-            if max(x_right_hand) == min(x_right_hand):
-                x_right_hand_scale = x_right_hand
-            else:
-                x_right_hand_scale = x_right_hand/(max(x_right_hand)-min(x_right_hand))
-            
-            if max(y_left_hand) == min(y_left_hand):
-                y_left_hand_scale = y_left_hand
-            else:
-                y_left_hand_scale = y_left_hand/(max(y_left_hand)-min(y_left_hand))
-            
-            if max(y_right_hand) == min(y_right_hand):
-                y_right_hand_scale = y_right_hand
-            else:
-                y_right_hand_scale = y_right_hand/(max(y_right_hand)-min(y_right_hand))
-                    
-            full_scale = np.concatenate([x_left_hand_scale.flatten(),
-                                         x_right_hand_scale.flatten(),
-                                         y_left_hand_scale.flatten(),
-                                         y_right_hand_scale.flatten()])
-
-            # Compute angles between joints
-            v1 = joint[[0,1,2,3,0,5,6,7,0,9,10,11,0,13,14,15,0,17,18,19] + [i+21 for i in [0,1,2,3,0,5,6,7,0,9,10,11,0,13,14,15,0,17,18,19]], :2] # Parent joint
-            v2 = joint[[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] + [i+21 for i in [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]], :2] # Child joint
-            v = v2 - v1 
-            # Normalize v
-            v = v / np.linalg.norm(v, axis=1)[:, np.newaxis]
-
-            # Get angle using arcos of dot product
-            angle = np.arccos(np.einsum('nt,nt->n',
-                v[[0,1,2,4,5,6,8,9,10,12,13,14,16,17,18] + [i+20 for i in [0,1,2,4,5,6,8,9,10,12,13,14,16,17,18]] ,:], 
-                v[[1,2,3,5,6,7,9,10,11,13,14,15,17,18,19] + [i+20 for i in [1,2,3,5,6,7,9,10,11,13,14,15,17,18,19]],:])) 
-
-            angle = np.degrees(angle) # Convert radian to degree
-
-            angle_label = np.array([angle], dtype=np.float32)
+            # 벡터 정규화
+            vector, angle_label = Vector_Normalization(joint)
 
             # 정답 라벨링
             angle_label = np.append(angle_label, idx)
+
 
             # 위치 종속성을 가지는 데이터 저장
             # d = np.concatenate([joint.flatten(), angle_label])
 
             # 정규화 벡터를 활용한 위치 종속성 제거
-            # d = np.concatenate([v.flatten(), angle_label.flatten()])
+            # d = np.concatenate([vector.flatten(), angle_label.flatten()])
 
             # 정규화 좌표를 활용한 위치 종속성 제거 
             d = np.concatenate([full_scale, angle_label.flatten()])

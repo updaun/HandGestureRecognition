@@ -24,3 +24,31 @@
 6. webcam_test_model : 웹캠을 활용하여 테스트합니다.
 - keras.py : keras model을 테스트합니다.
 - tflite.py : tflite model을 테스트합니다.
+
+<br>
+
+### 데이터 정규화 방법 선택
+- 필요에 따라 데이터 정규화를 선택 적용합니다.
+- 3가지 코드 중 1개만 선택합니다.
+
+```python
+# 위치 종속성을 가지는 데이터 저장
+d = np.concatenate([joint.flatten(), angle_label])
+
+# 정규화 벡터를 활용한 위치 종속성 제거
+d = np.concatenate([vector.flatten(), angle_label.flatten()])
+
+# 정규화 좌표를 활용한 위치 종속성 제거 
+d = np.concatenate([full_scale, angle_label.flatten()])
+```
+(Examples) 벡터 정규화를 적요하는 코드
+```python
+# 위치 종속성을 가지는 데이터 저장
+# d = np.concatenate([joint.flatten(), angle_label])
+
+# 정규화 벡터를 활용한 위치 종속성 제거
+d = np.concatenate([vector.flatten(), angle_label.flatten()])
+
+# 정규화 좌표를 활용한 위치 종속성 제거 
+# d = np.concatenate([full_scale, angle_label.flatten()])
+```

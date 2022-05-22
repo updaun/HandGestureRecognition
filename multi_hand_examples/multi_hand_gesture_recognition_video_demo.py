@@ -1,4 +1,6 @@
 import sys
+# sys.path.append('pingpong')
+# from pingpong.pingpongthread import PingPongThread
 import cv2
 import mediapipe as mp
 import numpy as np
@@ -7,6 +9,7 @@ import modules.holistic_module as hm
 from tensorflow.keras.models import load_model
 import math
 import os
+
 from modules.utils import Coordinate_Normalization, Vector_Normalization
 
 actions = ['yes', 'no', 'like', 'heart']
@@ -24,7 +27,7 @@ input_details = interpreter.get_input_details()
 output_details = interpreter.get_output_details()
 
 # test video path
-videoFolderPath = "dataset/output_video"
+videoFolderPath = "dataset/train_video"
 videoTestList = os.listdir(videoFolderPath)
 
 testTargetList =[]
@@ -37,6 +40,16 @@ for videoPath in videoTestList:
         testTargetList.append(fullVideoPath)
 
 testTargetList = sorted(testTargetList, key=lambda x:x[x.find("/", 9)+1], reverse=True)
+
+# overlay list
+folderPath = "expression_image"
+myList = os.listdir(folderPath)
+overlayList = []
+
+for imPath in myList:
+    image = cv2.imread(f'{folderPath}/{imPath}')
+    # print(f'{folderPath}/{imPath}')
+    overlayList.append(image)
 
 for target in testTargetList:
 
@@ -71,6 +84,7 @@ for target in testTargetList:
             # 벡터 정규화
             vector, angle_label = Vector_Normalization(joint)
 
+            
             # 위치 종속성을 가지는 데이터 저장
             # d = np.concatenate([joint.flatten(), angle_label])
         
@@ -117,10 +131,27 @@ for target in testTargetList:
 
                 if last_action != this_action:
                     last_action = this_action
-                
+        
+        img = cv2.flip(img, 1)
+        h, w, c = overlayList[0].shape
 
-            cv2.putText(img, f'{this_action.upper()}', org=(int(left_hand_lmList.landmark[0].x * img.shape[1]), int(left_hand_lmList.landmark[0].y * img.shape[0] + 20)), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(255, 255, 255), thickness=2)
-
+        # 사각 테두리
+        if this_action == "yes": # 연파란색
+            cv2.rectangle(img, (0, 0), (int(cap.get(3)), int(cap.get(4))), (225, 125, 75), 30)
+            img[15:h+15, 475:625] = overlayList[0]
+            this_action = ' '
+        elif this_action == "no": # 연빨강색
+            cv2.rectangle(img, (0, 0), (int(cap.get(3)), int(cap.get(4))), (55, 55, 240), 30)
+            img[15:h+15, 475:625] = overlayList[1]
+            this_action = ' '
+        elif this_action == "like": # 연두색
+            cv2.rectangle(img, (0, 0), (int(cap.get(3)), int(cap.get(4))), (40, 220, 30), 30)
+            img[15:h+15, 475:625] = overlayList[2]
+            this_action = ' '
+        elif this_action == "heart": # 핫핑크
+            cv2.rectangle(img, (0, 0), (int(cap.get(3)), int(cap.get(4))), (180, 105, 255), 30)
+            img[15:h+15, 475:625] = overlayList[3]
+            this_action = ' '        
 
         cv2.imshow('img', img)
         if cv2.waitKey(1) & 0xFF == 27:

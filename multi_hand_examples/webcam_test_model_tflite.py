@@ -8,6 +8,7 @@ import tensorflow as tf
 import modules.holistic_module as hm
 from tensorflow.keras.models import load_model
 import math
+from modules.utils import Coordinate_Normalization, Vector_Normalization
 
 actions = ['yes', 'no', 'like', 'heart']
 seq_length = 10
@@ -16,7 +17,7 @@ seq_length = 10
 detector = hm.HolisticDetector(min_detection_confidence=0.1)
 
 # Load TFLite model and allocate tensors.
-interpreter = tf.lite.Interpreter(model_path="models/multi_hand_gesture_classifier.tflite")
+interpreter = tf.lite.Interpreter(model_path="models/normalization_classifier.tflite")
 interpreter.allocate_tensors()
 
 # Get input and output tensors.
@@ -48,28 +49,20 @@ while cap.isOpened():
         for j, lm in enumerate(right_hand_lmList.landmark):
             joint[j+21] = [lm.x, lm.y]
 
-        # Compute angles between joints
-        v1 = joint[[0,1,2,3,0,5,6,7,0,9,10,11,0,13,14,15,0,17,18,19] + [i+21 for i in [0,1,2,3,0,5,6,7,0,9,10,11,0,13,14,15,0,17,18,19]], :2] # Parent joint
-        v2 = joint[[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] + [i+21 for i in [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]], :2] # Child joint
-        v = v2 - v1 
-        # Normalize v
-        v = v / np.linalg.norm(v, axis=1)[:, np.newaxis]
+        # 좌표 정규화
+        full_scale = Coordinate_Normalization(joint)
 
-        # Get angle using arcos of dot product
-        angle = np.arccos(np.einsum('nt,nt->n',
-            v[[0,1,2,4,5,6,8,9,10,12,13,14,16,17,18] + [i+20 for i in [0,1,2,4,5,6,8,9,10,12,13,14,16,17,18]] ,:], 
-            v[[1,2,3,5,6,7,9,10,11,13,14,15,17,18,19] + [i+20 for i in [1,2,3,5,6,7,9,10,11,13,14,15,17,18,19]],:])) 
+        # 벡터 정규화
+        vector, angle_label = Vector_Normalization(joint)
 
-        angle = np.degrees(angle) # Convert radian to degree
-
-        angle_label = np.array([angle], dtype=np.float32)
-
-        
         # 위치 종속성을 가지는 데이터 저장
         # d = np.concatenate([joint.flatten(), angle_label])
     
         # 정규화 벡터를 활용한 위치 종속성 제거
-        d = np.concatenate([v.flatten(), angle_label.flatten()])
+        # d = np.concatenate([vector.flatten(), angle_label.flatten()])
+
+        # 정규화 좌표를 활용한 위치 종속성 제거 
+        d = np.concatenate([full_scale, angle_label.flatten()])
         
 
         seq.append(d)
