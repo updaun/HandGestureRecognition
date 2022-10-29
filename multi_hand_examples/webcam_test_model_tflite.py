@@ -17,7 +17,7 @@ seq_length = 10
 detector = hm.HolisticDetector(min_detection_confidence=0.1)
 
 # Load TFLite model and allocate tensors.
-interpreter = tf.lite.Interpreter(model_path="models/normalization_classifier.tflite")
+interpreter = tf.lite.Interpreter(model_path="models/multi_hand_gesture_classifier.tflite")
 interpreter.allocate_tensors()
 
 # Get input and output tensors.
