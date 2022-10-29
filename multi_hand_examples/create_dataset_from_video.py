@@ -27,7 +27,7 @@ for i in range(len(actions)):
 # MediaPipe holistic model
 detector = hm.HolisticDetector(min_detection_confidence=0.1)
 
-videoFolderPath = "dataset/output_video"
+videoFolderPath = "dataset/new_test_video"
 videoTestList = os.listdir(videoFolderPath)
 
 testTargetList =[]
